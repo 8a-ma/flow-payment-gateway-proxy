@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "description": "flow-payment-gateway-proxy es un servicio intermediario desarrollado en Node.js diseñado para simplificar la integración con la pasarela de pagos Flow (Chile). Actúa como un puente centralizado que gestiona la creación de órdenes, el rastreo de estados en tiempo real mediante Redis y el procesamiento de notificaciones asíncronas vía Webhooks.",
   "main": "src/main.js",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "PORT=3000 node src/main.js",
-    "dev": "PORT=3000 nodemon src/main.js"
+    "dev": "nodemon",
+    "build": "rm -rf dist && esbuild src/main.js --bundle --plataform=node --target=node20, --outfile=dist/main.js --external:express --external:dotenv",
+    "start": "node dist/main.js",
+    "lint": "eslint src/**/*.js",
+    "test": "jest --passWithNoTests"
   },
   "repository": {
     "type": "git",
@@ -20,6 +26,25 @@
   },
   "homepage": "https://github.com/8a-ma/flow-payment-gateway-proxy#readme",
   "devDependencies": {
+    "esbuild": "^0.28.0",
+    "eslint": "^9.39.4",
     "nodemon": "^3.1.14"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "helmet": "^7.2.0",
+    "morgan": "^1.10.1"
+  },
+  "nodemonConfig": {
+    "watch": [
+      "src"
+    ],
+    "ext": "js,json",
+    "ignore": [
+      "node_modules",
+      "dist",
+      "tests"
+    ]
   }
 }
