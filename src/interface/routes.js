@@ -84,5 +84,32 @@ module.exports = (container) => {
 
     });
 
+    router.get('/payment/status/:token', async (req, res) => {
+        const { redis } = container;
+        const { token } = req.params;
+
+        const rawData = await redis.getValue(token);
+
+        if (!rawData) {
+            return res.status(404).json({
+                error: "Not Found",
+                message: "Token expired or doesn't exist"
+            });
+        }
+
+        let parsedData;
+
+        try {
+            parsedData = JSON.parse(rawData);
+        } catch (e) {
+            parsedData = rawData;
+        }
+
+        res.status(200).json({
+            status: "ok",
+            data: parsedData
+        });
+    });
+
     return router;
 }
