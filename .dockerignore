@@ -1,10 +1,28 @@
 # 1. Ignorar absolutamente todo
 **
 
-# 2. Excepciones (Lo que SÍ queremos que Docker vea)
+# 2. Permitir la estructura base (Excepciones)
 !package.json
 !package-lock.json
+!Dockerfile
 !src/
 !src/**
-!Dockerfile
-!.babelrc
+
+# 3. Archivos de configuración (¡Importante!)
+!.eslintrc*
+!.eslintignore
+#!esbuild.config.js 
+
+# 4. Forzar ignorar carpetas pesadas dentro de lo permitido
+# Aunque src/** está permitido, dentro de src no debería haber basura
+**/node_modules
+**/.git
+**/.DS_Store
+**/npm-debug.log
+**/.env
+**/.env.*
+
+# 5. Ignorar archivos temporales de desarrollo
+src/**/.cache
+src/**/.tmp
+src/**/.swp
