@@ -1,67 +1,39 @@
-# Cargamos las variables del .env para usarlas en el Makefile si es necesario
-ifneq ("$(wildcard .env)","")
-    include .env
-    export $(shell sed 's/=.*//' .env)
-endif
+# 1. Identificadores (Cambiarlos si cambias el nombre del servicio en el yaml)
+COMPOSE_FILE=docker-compose.yml
+APP_SERVICE=app-dev
+REDIS_SERVICE=redis-db
+IMAGE_NAME=flow-payment-proxy-app-dev # Nombre que Docker Compose asigna por defecto (directorio-servicio)
 
-# Variables de configuración
-IMAGE_NAME=flow-payment-proxy
-CONTAINER_NAME=flow-proxy-instance
-REDIS_CONTAINER=redis-flow-proxy
-PORT=8080
-
-# Comando para leer el .env y transformarlo en flags de Docker --env KEY=VAL
-ENV_FLAGS=$(shell [ -f .env ] && grep -v '^\#' .env | xargs -I {} echo "--env {}")
-
-.PHONY: help redis-up dev-up prod-up clean
+.PHONY: help dev-up clean logs ps
 
 help:
 	@echo "Comandos disponibles:"
-	@echo "  make redis-up  - Levanta solo el contenedor de Redis"
-	@echo "  make dev-up    - Levanta Redis + App en modo Desarrollo"
-	@echo "  make prod-up   - Levanta Redis + App en modo Producción"
-	@echo "  make clean     - Elimina TODO (App, Redis e Imágenes)"
+	@echo "  make dev-up    - Construye y levanta el entorno (App + Redis)"
+	@echo "  make clean     - Detiene, elimina contenedores, volúmenes e imágenes del proyecto"
+	@echo "  make logs      - Muestra los logs en tiempo real"
+	@echo "  make ps        - Lista los contenedores del proyecto"
 
-# --- INFRAESTRUCTURA (REDIS) ---
-redis-up:
-	@echo "🗄️  Levantando Redis..."
-	@docker stop $(REDIS_CONTAINER) 2>/dev/null || true
-	@docker rm $(REDIS_CONTAINER) 2>/dev/null || true
-	docker run -d \
-		--name $(REDIS_CONTAINER) \
-		-p $(REDIS_PORT):6379 \
-		--network bridge \
-		redis:7-alpine redis-server --requirepass $(REDIS_PASSWORD)
-	@echo "✅ Redis escuchando en el puerto $(REDIS_PORT)"
+# --- DESARROLLO ---
+dev-up:
+	@echo "🚀 Construyendo y levantando servicios con Docker Compose..."
+	# --build fuerza la reconstrucción de la imagen de la app
+	# -d corre en segundo plano para que el Makefile no se bloquee
+	docker compose -f $(COMPOSE_FILE) up -d --build
+	@echo "✅ Entorno listo. Conectando a los logs..."
+	docker compose -f $(COMPOSE_FILE) logs -f
 
-# --- ENTORNO DE DESARROLLO ---
-dev-up: redis-up
-	@echo "🚀 Iniciando App en DESARROLLO..."
-	docker build -f deployment/Dockerfile.dev -t $(IMAGE_NAME):dev .
-	docker run -d \
-		--name $(CONTAINER_NAME) \
-		-p $(PORT):$(PORT) \
-		--network bridge \
-		$(ENV_FLAGS) \
-		$(IMAGE_NAME):dev
-	docker logs -f $(CONTAINER_NAME)
+# --- MONITOREO ---
+logs:
+	docker compose -f $(COMPOSE_FILE) logs -f
 
-# --- ENTORNO DE PRODUCCIÓN ---
-prod-up: redis-up
-	@echo "📦 Iniciando App en PRODUCCIÓN..."
-	docker build -f deployment/Dockerfile.prod -t $(IMAGE_NAME):prod .
-	docker run -d \
-		--name $(CONTAINER_NAME) \
-		-p $(PORT):$(PORT) \
-		--network bridge \
-		$(ENV_FLAGS) \
-		$(IMAGE_NAME):prod
-	docker logs -f $(CONTAINER_NAME)
+ps:
+	docker compose -f $(COMPOSE_FILE) ps
 
-# --- LIMPIEZA TOTAL ---
+# --- LIMPIEZA QUIRÚRGICA ---
 clean:
-	@echo "🧹 Limpiando todo el entorno..."
-	@docker stop $(CONTAINER_NAME) $(REDIS_CONTAINER) 2>/dev/null || true
-	@docker rm $(CONTAINER_NAME) $(REDIS_CONTAINER) 2>/dev/null || true
-	@docker rmi $(IMAGE_NAME):dev $(IMAGE_NAME):prod 2>/dev/null || true
-	@echo "✨ Sistema limpio."
+	@echo "🧹 Deteniendo y eliminando contenedores del proyecto..."
+	# down elimina contenedores y la red interna creada por compose
+	# -v elimina los volúmenes (limpia la data de Redis)
+	# --rmi local elimina la imagen construida específicamente para este proyecto
+	docker compose -f $(COMPOSE_FILE) down -v --rmi local
+	@echo "✨ Limpieza completada. No se tocaron imágenes ni contenedores externos."

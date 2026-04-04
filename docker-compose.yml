@@ -24,8 +24,9 @@ services:
     env_file:
       - .env
     environment:
-      # Sobrescribimos el HOST para que apunte al nombre del servicio de arriba
+      - NODE_ENV=development
       - REDIS_HOST=redis-db
+      - PORT=8080
     volumes:
       - .:/app
       - /app/node_modules # Evita que el node_modules local pise al del contenedor

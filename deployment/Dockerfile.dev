@@ -1,45 +1,22 @@
-# ETAPA 1: Build
-FROM node:23-alpine3.20 AS builder
+FROM node:23-alpine3.20
 
-RUN apk update && apk upgrade -a && \
-    apk add --no-cache libc6-compat
+# Instalamos dependencias necesarias para binarios de node
+RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
+# Copiamos package.json primero para aprovechar el cache de capas
 COPY package*.json ./
 
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --cache /root/.npm && \
-    npm cache clean --force
+# Instalamos TODAS las dependencias (incluyendo nodemon)
+RUN npm install
 
+# Copiamos el resto del proyecto
 COPY . .
 
-RUN npm run build
+# Exponemos el puerto de la app
+EXPOSE 8080
 
-# ETAPA 2: Runtime
-FROM node:23-alpine3.20 AS runner
-
-WORKDIR /app
-
-ENV NODE_ENV=production
-ENV PORT=8080
-
-# Limpieza de Alpine y creación de usuario sin privilegios
-RUN apk update && apk upgrade -a && \
-    addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 flowproxy && \
-    rm -rf /var/cache/apk/* /tmp/* && \
-    npm config set cache /tmp/npm-cache --global && \
-    npm cache clean --force
-
-COPY package*.json ./
-
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --cache /root/.npm && \
-    npm cache clean --force
-
-COPY --from=builder --chown=flowproxy:nodejs /app/dist ./dist
-
-USER flowproxy
-
+# En desarrollo, corremos como root o aseguramos que el volumen tenga permisos
+# Por simplicidad en dev, usaremos el usuario por defecto de node o root
 CMD ["npm", "run", "dev"]
