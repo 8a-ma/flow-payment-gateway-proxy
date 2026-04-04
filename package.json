@@ -34,7 +34,8 @@
     "dotenv": "^17.4.0",
     "express": "^5.2.1",
     "helmet": "^7.2.0",
-    "morgan": "^1.10.1"
+    "morgan": "^1.10.1",
+    "redis": "^5.11.0"
   },
   "nodemonConfig": {
     "watch": [

@@ -4,8 +4,27 @@ const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const hmac = require('node:crypto');
+const RedisService = require('./infrastructure/db/redis');
+
+
+const redisService = new RedisService({
+    host: process.env.REDIS_HOST || 'localhost',
+    port: process.env.REDIS_PORT || 6379,
+    password: process.env.REDIS_PASSWORD,
+    user: process.env.REDIS_USER,
+    db: process.env.REDIS_DB
+});
 
 const app = express();
+
+(async () => {
+    try {
+        await redisService.connect();
+    } catch (err) {
+        console.error("Cannot connecto to Redis", err);
+    }
+})();
+
 
 // Middlewares de seguridad y logs
 app.use(helmet());
@@ -13,7 +32,6 @@ app.use(morgan('combined'));
 app.use(express.json());
 
 const PORT = process.env.PORT || 8080; // Prioriza la variable de entorno
-const APP_NAME = process.env.APP_NAME || 'Flow Proxy';
 const FLOW_SECRET_KEY = process.env.FLOW_SECRET_KEY;
 const FLOW_API_KEY = process.env.FLOW_API_KEY;
 const FLOW_API_URL = process.env.FLOW_API_URL;
@@ -64,6 +82,10 @@ app.post('/v1/payment/create', async (req, res) => {
                 error: "Error from the Flow API",
                 detail: data
             });
+        }
+
+        if (response.ok && data.token) {
+            await redisService.saveValue(data.token);
         }
 
         res.json(data);
