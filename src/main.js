@@ -3,103 +3,29 @@ require('dotenv').config();
 const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const hmac = require('node:crypto');
-const RedisService = require('./infrastructure/db/redis');
-
-
-const redisService = new RedisService({
-    host: process.env.REDIS_HOST || 'localhost',
-    port: process.env.REDIS_PORT || 6379,
-    password: process.env.REDIS_PASSWORD,
-    user: process.env.REDIS_USER,
-    db: process.env.REDIS_DB
-});
+const container = require('./infrastructure/container');
+const routes = require('./interface/routes');
 
 const app = express();
 
-(async () => {
-    try {
-        await redisService.connect();
-    } catch (err) {
-        console.error("Cannot connecto to Redis", err);
-    }
-})();
-
-
-// Middlewares de seguridad y logs
 app.use(helmet());
 app.use(morgan('combined'));
 app.use(express.json());
 
-const PORT = process.env.PORT || 8080; // Prioriza la variable de entorno
-const FLOW_SECRET_KEY = process.env.FLOW_SECRET_KEY;
-const FLOW_API_KEY = process.env.FLOW_API_KEY;
-const FLOW_API_URL = process.env.FLOW_API_URL;
+app.use('/v1', routes(container));
 
-app.get('/v1/status', (req, res) => {
-    res.status(204).end()
-})
+const PORT = process.env.PORT || 8080;
 
-
-app.post('/v1/payment/create', async (req, res) => {
-
-    try {
-        const paymentPayload = {
-            apiKey: FLOW_API_KEY,
-            ...req.body
-        };
-
-        const keys = Object.keys(paymentPayload);
-        keys.sort();
-
-        let toSign = "";
-
-        for (const key of keys) {
-            toSign += key + paymentPayload[key];
-        }
-
-        const signature = hmac
-            .createHmac("sha256", FLOW_SECRET_KEY)
-            .update(toSign)
-            .digest("hex");
-        
-        paymentPayload["s"] = signature;
-
-        const body = new URLSearchParams(paymentPayload).toString();
-
-        const response = await fetch(`${FLOW_API_URL}/payment/create`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: body
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            return res.status(response.status).json({
-                error: "Error from the Flow API",
-                detail: data
+(
+    async () => {
+        try {
+            await container.redis.connect();
+            app.listen(PORT, () => {
+                console.log(`[${process.env.APP_NAME || 'Proxy'}] on port ${PORT}`);
             });
+        } catch (err) {
+            console.log("Critical failure at the start:", err);
+            process.exit(1);
         }
-
-        if (response.ok && data.token) {
-            await redisService.saveValue(data.token);
-        }
-
-        res.json(data);
-    } catch (error) {
-        console.log("Error on Flow Payment Create:", error);
-
-        res.status(500).json({
-            error: "Internal Server Error",
-            message: error.message
-        })
     }
-
-});
-
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-});
+)();
