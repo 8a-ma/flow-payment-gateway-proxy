@@ -1,13 +1,45 @@
-FROM node:20-alpine
+# ETAPA 1: Build
+FROM node:23-alpine3.20 AS builder
+
+RUN apk update && apk upgrade -a && \
+    apk add --no-cache libc6-compat
 
 WORKDIR /app
 
-# Copiamos dependencias
 COPY package*.json ./
-RUN npm install
 
-# Copiamos el resto del código
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --cache /root/.npm && \
+    npm cache clean --force
+
 COPY . .
 
-# En desarrollo usamos nodemon directamente
-CMD ["npm", "run dev"]
+RUN npm run build
+
+# ETAPA 2: Runtime
+FROM node:23-alpine3.20 AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=8080
+
+# Limpieza de Alpine y creación de usuario sin privilegios
+RUN apk update && apk upgrade -a && \
+    addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 flowproxy && \
+    rm -rf /var/cache/apk/* /tmp/* && \
+    npm config set cache /tmp/npm-cache --global && \
+    npm cache clean --force
+
+COPY package*.json ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev --cache /root/.npm && \
+    npm cache clean --force
+
+COPY --from=builder --chown=flowproxy:nodejs /app/dist ./dist
+
+USER flowproxy
+
+CMD ["npm", "run", "dev"]

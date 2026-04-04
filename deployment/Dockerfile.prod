@@ -22,7 +22,7 @@ FROM node:23-alpine3.20 AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-ENV PORT=443
+ENV PORT=8080
 
 # Limpieza de Alpine y creación de usuario sin privilegios
 RUN apk update && apk upgrade -a && \
