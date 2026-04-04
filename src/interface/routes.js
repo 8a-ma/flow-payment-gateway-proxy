@@ -1,12 +1,13 @@
 const express = require('express');
 const router = express.Router();
+const authMiddleware = require('./authMiddleware');
 
 module.exports = (container) => {
     router.use(express.urlencoded({ extended: true }));
 
     router.get('/status', (req, res) => res.status(204).end());
 
-    router.post('/payment/create', async (req, res) => {
+    router.post('/payment/create', authMiddleware, async (req, res) => {
         const { flow, redis, crypto } = container;
         const paymentPayload = {
             apiKey: flow.apiKey,
@@ -84,7 +85,7 @@ module.exports = (container) => {
 
     });
 
-    router.get('/payment/status/:token', async (req, res) => {
+    router.get('/payment/status/:token', authMiddleware, async (req, res) => {
         const { redis } = container;
         const { token } = req.params;
 
