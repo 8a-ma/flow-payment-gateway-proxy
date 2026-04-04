@@ -1,0 +1,10 @@
+# 1. Ignorar absolutamente todo
+**
+
+# 2. Excepciones (Lo que SÍ queremos que Docker vea)
+!package.json
+!package-lock.json
+!src/
+!src/**
+!Dockerfile
+!.babelrc

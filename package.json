@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "nodemon",
-    "build": "rm -rf dist && esbuild src/main.js --bundle --plataform=node --target=node20, --outfile=dist/main.js --external:express --external:dotenv",
+    "build": "rm -rf dist && esbuild src/main.js --bundle --platform=node --target=node20 --outfile=dist/main.js --external:express --external:dotenv --external:helmet --external:morgan --external:redis",
     "start": "node dist/main.js",
     "lint": "eslint src/**/*.js",
     "test": "jest --passWithNoTests"
