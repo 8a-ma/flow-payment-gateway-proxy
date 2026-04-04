@@ -29,7 +29,7 @@ class RedisService {
     async saveToken(token, value = "") {
         try {
             await this.client.set(token, value,{
-                EX: 120
+                EX: 600
             });
         } catch (error) {
             console.log(`Error while save the token on redis: ${error.message}`);

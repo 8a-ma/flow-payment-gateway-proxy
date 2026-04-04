@@ -8,8 +8,8 @@ module.exports = (container) => {
     router.get('/status', (req, res) => res.status(204).end());
 
     router.post('/payment/create', authMiddleware, async (req, res) => {
-        const { flow, redis, crypto } = container;
-        const paymentPayload = {
+        const { flow, crypto, proxy } = container;
+        let paymentPayload = {
             apiKey: flow.apiKey,
             urlConfirmation: `${proxy.proxyUrl}/v1/payment/confirmation`,
             ...req.body
@@ -39,33 +39,34 @@ module.exports = (container) => {
             throw error;
         }
 
-        if (data.token) await redis.saveToken(token, signature);
-
         res.json(data);
     });
 
     router.post('/payment/confirmation', async (req, res) => {
         const { redis, flow, crypto } = container;
-        const { token } = req.body;
+
+        const token = req.body.token;
 
         if (!token) {
             return res.status(400).json({ error: "No token provided by Flow" });
         }
 
-        const savedSignature = await redis.getValue(token);
-
-        if (!savedSignature) {
-            console.error(`Token ${token} not found or expired in Redis`);
-            return res.status(404).json({ error: "Token expired or invalid" });
-        }
-
-        const params = new URLSearchParams({
+        let payload = {
             apiKey: flow.apiKey,
-            token: token,
-            s: savedSignature
-        });
+            token: token
+        };
 
-        const response = await fetch(`${flow.apiUrl}/payment/getStatus?${params.toString()}`, {
+        const toSign = Object.keys(payload)
+            .sort()
+            .map(key => key + payload[key])
+            .join('')
+            
+        const signature = crypto.sign(toSign, flow.secretKey);
+        payload["s"] = signature;
+
+        const params = new URLSearchParams(payload).toString()
+
+        const response = await fetch(`${flow.apiUrl}/payment/getStatus?${params}`, {
             method: 'GET'
         });
 
@@ -79,7 +80,6 @@ module.exports = (container) => {
         }
         
         await redis.updateValue(token, JSON.stringify(data));
-
 
         res.json({status: "ok"});
 
