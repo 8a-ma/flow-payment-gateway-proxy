@@ -1,9 +1,15 @@
-const createClient = require('redis');
+const { createClient } = require('redis');
 
 
 class RedisService {
     constructor(config) {
-        const url = `redis://${config.user ? `${config.user}:${config.password}@` : ''}${config.host}:${config.port}/${config.db}`;
+        const userPart = config.password 
+            ? `${config.user || 'default'}:${config.password}@` 
+            : '';
+
+        const db = config.db || 0;
+
+        const url = `redis://${userPart}${config.host}:${config.port}/${db}`;
 
         this.client = createClient({url});
 
