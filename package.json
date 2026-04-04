@@ -12,7 +12,9 @@
     "build": "rm -rf dist && esbuild src/main.js --bundle --platform=node --target=node20 --outfile=dist/main.js --external:express --external:dotenv --external:helmet --external:morgan --external:redis",
     "start": "node dist/main.js",
     "lint": "eslint src/**/*.js",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "docker:dev": "docker build -f deployment/Dockerfile.dev -t flow-proxy:dev .",
+    "docker:prod": "docker build -f deployment/Dockerfile.prod -t flow-proxy:prod ."
   },
   "repository": {
     "type": "git",
