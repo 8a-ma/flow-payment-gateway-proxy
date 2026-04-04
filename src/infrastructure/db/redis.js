@@ -17,9 +17,9 @@ class RedisService {
         }
     }
     
-    async saveValue(token, value = "") {
+    async saveToken(token, value = "") {
         try {
-            await this.client.set(token, value, {
+            await this.client.set(token, value,{
                 EX: 120
             });
         } catch (error) {
@@ -33,6 +33,17 @@ class RedisService {
             return await this.client.get(key);
         } catch (error) {
             console.log(`Error while get the key on redis: ${error.message}`);
+            throw error;
+        }
+    }
+
+    async updateValue(key, value) {
+        try {
+            await this.client.set(key, value, {
+                KEEPTTL: true
+            });
+        } catch (error) {
+            console.log(`Error while updating value on redis: ${error.message}`);
             throw error;
         }
     }

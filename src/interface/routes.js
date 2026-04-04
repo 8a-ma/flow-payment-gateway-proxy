@@ -1,21 +1,26 @@
 const express = require('express');
 const router = express.Router();
 
-
-
 module.exports = (container) => {
+    router.use(express.urlencoded({ extended: true }));
+
     router.get('/status', (req, res) => res.status(204).end());
 
     router.post('/payment/create', async (req, res) => {
         const { flow, redis, crypto } = container;
-        const paymentPayload = { apiKey: flow.apiKey, ...req.body};
+        const paymentPayload = {
+            apiKey: flow.apiKey,
+            urlConfirmation: `${proxy.proxyUrl}/v1/payment/confirmation`,
+            ...req.body
+        };
 
         const toSign = Object.keys(paymentPayload)
             .sort()
             .map(key => key + paymentPayload[key])
             .join('')
             
-        paymentPayload["s"] = crypto.sign(toSign, flow.secretKey);
+        const signature = crypto.sign(toSign, flow.secretKey);
+        paymentPayload["s"] = signature;
 
         const response = await fetch(`${flow.apiUrl}/payment/create`, {
             method: 'POST',
@@ -26,14 +31,57 @@ module.exports = (container) => {
         const data = await response.json();
 
         if (!response.ok) {
-            const error = new Error("Flow API rejection");
+            const error = new Error("Flow API rejection payout order");
             error.status = response.status;
             error.detail = data;
 
             throw error;
         }
 
-        if (data.token) await redis.saveValue(token);
+        if (data.token) await redis.saveToken(token, signature);
+
+        res.json(data);
+    });
+
+    router.post('/payment/confirmation', async (req, res) => {
+        const { redis, flow, crypto } = container;
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({ error: "No token provided by Flow" });
+        }
+
+        const savedSignature = await redis.getValue(token);
+
+        if (!savedSignature) {
+            console.error(`Token ${token} not found or expired in Redis`);
+            return res.status(404).json({ error: "Token expired or invalid" });
+        }
+
+        const params = new URLSearchParams({
+            apiKey: flow.apiKey,
+            token: token,
+            s: savedSignature
+        });
+
+        const response = await fetch(`${flow.apiUrl}/payment/getStatus?${params.toString()}`, {
+            method: 'GET'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            const error = new Error("Flow API rejection: get status");
+            error.status = response.status;
+            error.detail = data;
+            throw error;
+        }
+        
+        await redis.updateValue(token, JSON.stringify(data));
+
+
+        res.json({status: "ok"});
+
     });
 
     return router;

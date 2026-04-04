@@ -17,6 +17,9 @@ const container = {
     },
     crypto: {
         sign: (toSign, secret) => crypto.createHmac("sha256", secret).update(toSign).digest("hex")
+    },
+    proxy: {
+        proxyUrl: process.env.PROXY_URL
     }
 }
 
