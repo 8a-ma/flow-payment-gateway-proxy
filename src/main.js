@@ -3,7 +3,8 @@ const express = require('express');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const container = require('./infrastructure/container');
-const routes = require('./interface/routes');
+const paymentsRoutes = require('./interface/routes/payments');
+const healthRoutes = require('./interface/routes/health');
 const errorHandler = require('./interface/errorHandler');
 
 const app = express();
@@ -11,8 +12,10 @@ const app = express();
 app.use(helmet());
 app.use(morgan('combined'));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.use('/v1', routes(container));
+app.use('/v1', paymentsRoutes(container));
+app.use('/v1', healthRoutes);
 
 app.use(errorHandler);
 const PORT = process.env.PORT || 8080;

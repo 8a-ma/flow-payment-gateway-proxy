@@ -1,14 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('./authMiddleware');
+const authMiddleware = ('../authMiddleware');
 
 module.exports = (container) => {
-    router.use(express.urlencoded({ extended: true }));
-
-    router.get('/status', (req, res) => res.status(204).end());
-
     router.post('/payment/create', authMiddleware, async (req, res) => {
         const { flow, crypto, proxy } = container;
+    
         let paymentPayload = {
             apiKey: flow.apiKey,
             urlConfirmation: `${proxy.proxyUrl}/v1/payment/confirmation`,
